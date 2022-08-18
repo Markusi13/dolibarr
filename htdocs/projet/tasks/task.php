@@ -120,9 +120,33 @@ if ($action == 'update' && !GETPOST("cancel") && $user->rights->projet->creer) {
 				setEventMessages($object->error, $object->errors, 'errors');
 				$action = 'edit';
 			}
+		} else {
+			$action = 'edit';
 		}
 	} else {
 		$action = 'edit';
+	}
+}
+
+if ($action == 'confirm_clone' && $confirm == 'yes') {
+	//$clone_contacts = GETPOST('clone_contacts') ? 1 : 0;
+	$clone_prog = GETPOST('clone_prog') ? 1 : 0;
+	$clone_time = GETPOST('clone_time') ? 1 : 0;
+	$clone_affectation = GETPOST('clone_affectation') ? 1 : 0;
+	$clone_change_dt = GETPOST('clone_change_dt') ? 1 : 0;
+	$clone_notes = GETPOST('clone_notes') ? 1 : 0;
+	$clone_file = GETPOST('clone_file') ? 1 : 0;
+	$result = $object->createFromClone($user, $object->id, $object->fk_project, $object->fk_task_parent, $clone_change_dt, $clone_affectation, $clone_time, $clone_file, $clone_notes, $clone_prog);
+	if ($result <= 0) {
+		setEventMessages($object->error, $object->errors, 'errors');
+	} else {
+		// Load new object
+		$newobject = new Task($db);
+		$newobject->fetch($result);
+		$newobject->fetch_optionals();
+		$newobject->fetch_thirdparty(); // Load new object
+		$object = $newobject;
+		$action = '';
 	}
 }
 
@@ -175,7 +199,7 @@ if ($action == 'remove_file' && $user->rights->projet->creer) {
 	require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 
 	$langs->load("other");
-	$upload_dir = $conf->projet->dir_output;
+	$upload_dir = $conf->project->dir_output;
 	$file = $upload_dir.'/'.dol_sanitizeFileName(GETPOST('file'));
 
 	$ret = dol_delete_file($file);
@@ -190,12 +214,19 @@ if ($action == 'remove_file' && $user->rights->projet->creer) {
 /*
  * View
  */
-
-llxHeader('', $langs->trans("Task"));
-
 $form = new Form($db);
 $formother = new FormOther($db);
 $formfile = new FormFile($db);
+$result = $projectstatic->fetch($object->fk_project);
+
+$title = $object->ref;
+if (!empty($withproject)) {
+	$title .= ' | ' . $langs->trans("Project") . (!empty($projectstatic->ref) ? ': '.$projectstatic->ref : '')  ;
+}
+$help_url = '';
+
+llxHeader('', $title, $help_url);
+
 
 if ($id > 0 || !empty($ref)) {
 	$res = $object->fetch_optionals();
@@ -203,7 +234,7 @@ if ($id > 0 || !empty($ref)) {
 		$object->fetchComments();
 	}
 
-	$result = $projectstatic->fetch($object->fk_project);
+
 	if (!empty($conf->global->PROJECT_ALLOW_COMMENT_ON_PROJECT) && method_exists($projectstatic, 'fetchComments') && empty($projectstatic->comments)) {
 		$projectstatic->fetchComments();
 	}
@@ -251,7 +282,7 @@ if ($id > 0 || !empty($ref)) {
 		print '<table class="border tableforfield centpercent">';
 
 		// Usage
-		if (!empty($conf->global->PROJECT_USE_OPPORTUNITIES) || empty($conf->global->PROJECT_HIDE_TASKS) || !empty($conf->eventorganization->enabled)) {
+		if (!empty($conf->global->PROJECT_USE_OPPORTUNITIES) || empty($conf->global->PROJECT_HIDE_TASKS) || isModEnabled('eventorganization')) {
 			print '<tr><td class="tdtop">';
 			print $langs->trans("Usage");
 			print '</td>';
@@ -274,8 +305,8 @@ if ($id > 0 || !empty($ref)) {
 				print $form->textwithpicto($langs->trans("BillTime"), $htmltext);
 				print '<br>';
 			}
-			if (!empty($conf->eventorganization->enabled)) {
-				print '<input type="checkbox" disabled name="usage_organize_event"'.(GETPOSTISSET('usage_organize_event') ? (GETPOST('usage_organize_event', 'alpha') != '' ? ' checked="checked"' : '') : ($object->usage_organize_event ? ' checked="checked"' : '')).'"> ';
+			if (isModEnabled('eventorganization')) {
+				print '<input type="checkbox" disabled name="usage_organize_event"'.(GETPOSTISSET('usage_organize_event') ? (GETPOST('usage_organize_event', 'alpha') != '' ? ' checked="checked"' : '') : ($projectstatic->usage_organize_event ? ' checked="checked"' : '')).'"> ';
 				$htmltext = $langs->trans("EventOrganizationDescriptionLong");
 				print $form->textwithpicto($langs->trans("ManageOrganizeEvent"), $htmltext);
 			}
@@ -285,8 +316,10 @@ if ($id > 0 || !empty($ref)) {
 		// Visibility
 		print '<tr><td class="titlefield">'.$langs->trans("Visibility").'</td><td>';
 		if ($projectstatic->public) {
+			print img_picto($langs->trans('SharedProject'), 'world', 'class="paddingrightonly"');
 			print $langs->trans('SharedProject');
 		} else {
+			print img_picto($langs->trans('PrivateProject'), 'private', 'class="paddingrightonly"');
 			print $langs->trans('PrivateProject');
 		}
 		print '</td></tr>';
@@ -329,7 +362,7 @@ if ($id > 0 || !empty($ref)) {
 		print '</td></tr>';
 
 		// Categories
-		if ($conf->categorie->enabled) {
+		if (isModEnabled('categorie')) {
 			print '<tr><td class="valignmiddle">'.$langs->trans("Categories").'</td><td>';
 			print $form->showCategories($projectstatic->id, 'project', 1);
 			print "</td></tr>";
@@ -374,6 +407,22 @@ if ($id > 0 || !empty($ref)) {
 	// To verify role of users
 	//$userAccess = $projectstatic->restrictedProjectArea($user); // We allow task affected to user even if a not allowed project
 	//$arrayofuseridoftask=$object->getListContactId('internal');
+
+	if ($action == 'clone') {
+		$formquestion = array(
+			'text' => $langs->trans("ConfirmClone"),
+			//array('type' => 'checkbox', 'name' => 'clone_contacts', 'label' => $langs->trans("CloneContacts"), 'value' => true),
+			array('type' => 'checkbox', 'name' => 'clone_change_dt', 'label' => $langs->trans("CloneChanges"), 'value' => true),
+			array('type' => 'checkbox', 'name' => 'clone_affectation', 'label' => $langs->trans("CloneAffectation"), 'value' => true),
+			array('type' => 'checkbox', 'name' => 'clone_prog', 'label' => $langs->trans("CloneProgression"), 'value' => true),
+			array('type' => 'checkbox', 'name' => 'clone_time', 'label' => $langs->trans("CloneTimes"), 'value' => true),
+			array('type' => 'checkbox', 'name' => 'clone_file', 'label' => $langs->trans("CloneFile"), 'value' => true),
+
+		);
+
+		print $form->formconfirm($_SERVER["PHP_SELF"]."?id=".$object->id, $langs->trans("ToClone"), $langs->trans("ConfirmCloneTask"), "confirm_clone", $formquestion, '', 1, 300, 590);
+	}
+
 
 	$head = task_prepare_head($object);
 
@@ -618,6 +667,7 @@ if ($id > 0 || !empty($ref)) {
 			// Modify
 			if ($user->rights->projet->creer) {
 				print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=edit&token='.newToken().'&withproject='.((int) $withproject).'">'.$langs->trans('Modify').'</a>';
+				print '<a class="butAction" href="'.$_SERVER['PHP_SELF'].'?id='.$object->id.'&action=clone&token='.newToken().'&withproject='.((int) $withproject).'">'.$langs->trans('Clone').'</a>';
 			} else {
 				print '<a class="butActionRefused classfortooltip" href="#" title="'.$langs->trans("NotAllowed").'">'.$langs->trans('Modify').'</a>';
 			}
@@ -643,7 +693,7 @@ if ($id > 0 || !empty($ref)) {
 		 * Generated documents
 		 */
 		$filename = dol_sanitizeFileName($projectstatic->ref)."/".dol_sanitizeFileName($object->ref);
-		$filedir = $conf->projet->dir_output."/".dol_sanitizeFileName($projectstatic->ref)."/".dol_sanitizeFileName($object->ref);
+		$filedir = $conf->project->dir_output."/".dol_sanitizeFileName($projectstatic->ref)."/".dol_sanitizeFileName($object->ref);
 		$urlsource = $_SERVER["PHP_SELF"]."?id=".$object->id;
 		$genallowed = ($user->rights->projet->lire);
 		$delallowed = ($user->rights->projet->creer);

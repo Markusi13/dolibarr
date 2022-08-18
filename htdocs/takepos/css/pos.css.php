@@ -141,7 +141,9 @@ button.calcbutton2 {
 	margin: 1px;
 	border-radius: 3px;
 }
-
+button.calcbutton2.clicked {
+	background-color: #8855AA;
+}
 button.calcbutton2 .iconwithlabel {
 	padding-bottom: 10px;
 }
@@ -311,7 +313,7 @@ table.postablelines tr td {
 
 .posinvoiceline td {
 	height: 40px !important;
-	background-color: var(--colorbacklineimpair1);
+	background-color: var(--colorbacklineimpair2);
 }
 
 .postablelines td.linecolht {
@@ -436,8 +438,9 @@ tr.selected, tr.selected td {
 	/* font-weight: bold; */
 	background-color: rgb(240,230,210) !important;
 }
-.order {
-	color: limegreen;
+.order td {
+	color: green;
+	/* background-color: #f5f5f5; */
 }
 
 .colorwhite {

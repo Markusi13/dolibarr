@@ -10,6 +10,7 @@
  * Copyright (C) 2018		Ferran Marcet		<fmarcet@2byte.es>
  * Copyright (C) 2019		Nicolas ZABOURI		<info@inovea-conseil.com>
  * Copyright (C) 2022		OpenDSI				<support@open-dsi.fr>
+ * Copyright (C) 2022      	Gauthier VERDOL     <gauthier.verdol@atm-consulting.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -315,6 +316,11 @@ if ($nolinesbefore) {
 			echo '<input type="hidden" name="pbq" id="pbq" value="">';
 			echo '</span>';
 		}
+
+		if (!empty($conf->global->MAIN_ADD_LINE_AT_POSITION)) {
+			echo '<br>'.$langs->trans('AddLineOnPosition').' : <input type="number" name="rank" step="1" min="0" style="width: 5em;">';
+		}
+
 		if (is_object($hookmanager) && empty($senderissupplier)) {
 			$parameters = array('fk_parent_line'=>GETPOST('fk_parent_line', 'int'));
 			$reshook = $hookmanager->executeHooks('formCreateProductOptions', $parameters, $object, $action);
@@ -352,6 +358,10 @@ if ($nolinesbefore) {
 		if (!empty($conf->service->enabled) && ($object->element == 'facturerec' || $object->element == 'invoice_supplier_rec')) {
 			echo '<div class="divlinefordates"><br>';
 			echo $langs->trans('AutoFillDateFrom').' ';
+			if (!empty($conf->global->INVOICE_REC_DATE_TO_YES)) {
+				$line->date_start_fill = 1;
+				$line->date_end_fill = 1;
+			}
 			echo $form->selectyesno('date_start_fill', $line->date_start_fill, 1);
 			echo ' - ';
 			echo $langs->trans('AutoFillDateTo').' ';
@@ -942,11 +952,14 @@ if (!empty($usemargins) && $user->rights->margins->creer) {
 			var discount = parseFloat($('option:selected', this).attr('data-discount'));
 			if (isNaN(discount)) { discount = parseFloat(jQuery('#idprodfournprice').attr('data-discount'));}
 
-			console.log("We find supplier price :"+up+" qty: "+qty+" discount: "+discount+" for product "+jQuery('#idprodfournprice').val());
+			/* var tva_tx = $('option:selected', this).data('tvatx'); */
+
+			console.log("We find supplier price :"+up+" qty: "+qty+" tva_tx="+tva_tx+" discount: "+discount+" for product "+jQuery('#idprodfournprice').val());
 
 			jQuery("#price_ht").val(up);
-			if (jQuery("#qty").val() < qty)
-			{
+			/* $('#tva_tx option').removeAttr('selected').filter('[value='+tva_tx+']').prop('selected', true); */
+
+			if (jQuery("#qty").val() < qty)	{
 				jQuery("#qty").val(qty);
 			}
 			if (jQuery("#remise_percent").val() < discount)

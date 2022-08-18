@@ -143,7 +143,10 @@ if (empty($reshook)) {
 
 $form = new Form($db);
 
-llxHeader('', $langs->trans("Permissions"));
+$person_name = !empty($object->firstname) ? $object->lastname.", ".$object->firstname : $object->lastname;
+$title = $person_name." - ".$langs->trans('Permissions');
+$help_url = '';
+llxHeader('', $title, $help_url);
 
 $head = user_prepare_head($object);
 
@@ -253,7 +256,36 @@ if ($user->rights->user->user->lire || $user->admin) {
 dol_banner_tab($object, 'id', $linkback, $user->rights->user->user->lire || $user->admin);
 
 
+print '<div class="fichecenter">';
+
 print '<div class="underbanner clearboth"></div>';
+print '<table class="border centpercent tableforfield">';
+
+// Login
+print '<tr><td class="titlefield">'.$langs->trans("Login").'</td>';
+if (!empty($object->ldap_sid) && $object->statut == 0) {
+	print '<td class="error">';
+	print $langs->trans("LoginAccountDisableInDolibarr");
+	print '</td>';
+} else {
+	print '<td>';
+	$addadmin = '';
+	if (property_exists($object, 'admin')) {
+		if (!empty($conf->multicompany->enabled) && !empty($object->admin) && empty($object->entity)) {
+			$addadmin .= img_picto($langs->trans("SuperAdministratorDesc"), "redstar", 'class="paddingleft"');
+		} elseif (!empty($object->admin)) {
+			$addadmin .= img_picto($langs->trans("AdministratorDesc"), "star", 'class="paddingleft"');
+		}
+	}
+	print showValueWithClipboardCPButton($object->login).$addadmin;
+	print '</td>';
+}
+print '</tr>'."\n";
+
+print '</table>';
+
+print '</div>';
+print '<br>';
 
 if ($user->admin) {
 	print info_admin($langs->trans("WarningOnlyPermissionOfActivatedModules"));
@@ -311,7 +343,7 @@ if ($result) {
 		$obj = $db->fetch_object($result);
 
 		// If line is for a module that does not exist anymore (absent of includes/module), we ignore it
-		if (empty($modules[$obj->module])) {
+		if (!isset($obj->module) || empty($modules[$obj->module])) {
 			$i++;
 			continue;
 		}
